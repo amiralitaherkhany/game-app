@@ -20,8 +20,8 @@ func New(repo Repository) *Service {
 }
 
 type RegisterRequest struct {
-	PhoneNumber string
-	Name        string
+	PhoneNumber string `json:"phone_number"`
+	Name        string `json:"name"`
 }
 type RegisterResponse struct {
 	User entity.User
