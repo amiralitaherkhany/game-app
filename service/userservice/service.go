@@ -10,10 +10,36 @@ import (
 type Repository interface {
 	IsPhoneNumberUnique(phoneNumber string) (bool, error)
 	Register(u entity.User) (entity.User, error)
+	GetUserByPhoneNumber(phoneNumber string) (*entity.User, error)
 }
 
 type Service struct {
 	repo Repository
+}
+
+type LoginRequest struct {
+	PhoneNumber string `json:"phone_number"`
+	Password    string `json:"password"`
+}
+
+type LoginResponse struct {
+}
+
+func (s Service) Login(req LoginRequest) (LoginResponse, error) {
+	user, err := s.repo.GetUserByPhoneNumber(req.PhoneNumber)
+	if err != nil {
+		return LoginResponse{}, fmt.Errorf("unexpected error: %w", err)
+	}
+
+	if user == nil {
+		return LoginResponse{}, fmt.Errorf("phone number or password isn't correct")
+	}
+
+	if !CheckPasswordHash(req.Password, user.Password) {
+		return LoginResponse{}, fmt.Errorf("phone number or password isn't correct")
+	}
+
+	return LoginResponse{}, nil
 }
 
 func New(repo Repository) *Service {
