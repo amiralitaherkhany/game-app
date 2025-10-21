@@ -14,12 +14,42 @@ func main() {
 
 	mux.HandleFunc("/users/register", UserRegisterHandler)
 	mux.HandleFunc("/users/login", UserLoginHandler)
+	mux.HandleFunc("/users/profile", UserProfileHandler)
 
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprintln(w, "everything is good!")
 	})
 
 	http.ListenAndServe("localhost:8080", mux)
+}
+
+func UserProfileHandler(writer http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		fmt.Fprintln(writer, "invalid method")
+		return
+	}
+
+	data, err := io.ReadAll(r.Body)
+	if err != nil {
+		fmt.Fprintln(writer, err)
+		return
+	}
+
+	var req userservice.GetProfileRequest
+	err = json.Unmarshal(data, &req)
+	if err != nil {
+		fmt.Fprintln(writer, err)
+		return
+	}
+
+	repo := mysql.New()
+	resp, err := userservice.New(repo).GetProfile(req)
+	if err != nil {
+		fmt.Fprintln(writer, err)
+		return
+	}
+
+	json.NewEncoder(writer).Encode(resp)
 }
 
 func UserLoginHandler(writer http.ResponseWriter, r *http.Request) {

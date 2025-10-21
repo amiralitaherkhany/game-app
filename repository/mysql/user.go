@@ -6,6 +6,21 @@ import (
 	"gameapp/entity"
 )
 
+func (d MySQLDB) GetUserByID(userID uint) (*entity.User, error) {
+	row := d.db.QueryRow(`select id, name, phone_number, password from users where id=?`, userID)
+
+	var user entity.User
+	err := row.Scan(&user.ID, &user.Name, &user.PhoneNumber, &user.Password)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return &entity.User{}, fmt.Errorf("can't scan query result: %w", err)
+	}
+
+	return &user, nil
+}
+
 func (d MySQLDB) GetUserByPhoneNumber(phoneNumber string) (*entity.User, error) {
 	row := d.db.QueryRow(`select id, name, phone_number, password from users where phone_number=?`, phoneNumber)
 

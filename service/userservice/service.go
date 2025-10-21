@@ -11,10 +11,34 @@ type Repository interface {
 	IsPhoneNumberUnique(phoneNumber string) (bool, error)
 	Register(u entity.User) (entity.User, error)
 	GetUserByPhoneNumber(phoneNumber string) (*entity.User, error)
+	GetUserByID(userID uint) (*entity.User, error)
 }
 
 type Service struct {
 	repo Repository
+}
+
+type GetProfileRequest struct {
+	UserID uint `json:"user_id"`
+}
+
+type GetProfileResponse struct {
+	Name string `json:"name"`
+}
+
+func (s Service) GetProfile(req GetProfileRequest) (GetProfileResponse, error) {
+	user, err := s.repo.GetUserByID(req.UserID)
+	if err != nil {
+		return GetProfileResponse{}, fmt.Errorf("unexpected error: %w", err)
+	}
+
+	if user == nil {
+		return GetProfileResponse{}, fmt.Errorf("user not found")
+	}
+
+	return GetProfileResponse{
+		Name: user.Name,
+	}, nil
 }
 
 type LoginRequest struct {
