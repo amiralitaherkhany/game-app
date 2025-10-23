@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"gameapp/entity"
 	"gameapp/pkg/phonenumber"
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
+	"time"
 )
 
 type Repository interface {
@@ -15,7 +17,8 @@ type Repository interface {
 }
 
 type Service struct {
-	repo Repository
+	signKey string
+	repo    Repository
 }
 
 type GetProfileRequest struct {
@@ -66,8 +69,8 @@ func (s Service) Login(req LoginRequest) (LoginResponse, error) {
 	return LoginResponse{}, nil
 }
 
-func New(repo Repository) *Service {
-	return &Service{repo: repo}
+func New(repo Repository, signKey string) *Service {
+	return &Service{repo: repo, signKey: signKey}
 }
 
 type RegisterRequest struct {
@@ -76,7 +79,7 @@ type RegisterRequest struct {
 	Password    string `json:"password"`
 }
 type RegisterResponse struct {
-	User entity.User
+	AccessToken string `json:"access_token"`
 }
 
 func (s Service) Register(req RegisterRequest) (RegisterResponse, error) {
@@ -126,8 +129,13 @@ func (s Service) Register(req RegisterRequest) (RegisterResponse, error) {
 		return RegisterResponse{}, fmt.Errorf("unexpected error: %w", err)
 	}
 
+	jwtToken, err := createNewJwtToken(createdUser.ID, s.signKey)
+	if err != nil {
+		return RegisterResponse{}, fmt.Errorf("unexpected error: %w", err)
+	}
+
 	return RegisterResponse{
-		User: createdUser,
+		AccessToken: jwtToken,
 	}, nil
 }
 
@@ -140,4 +148,26 @@ func HashPassword(password string) (string, error) {
 func CheckPasswordHash(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
+}
+
+type MyCustomClaims struct {
+	UserID uint `json:"user_id"`
+	jwt.RegisteredClaims
+}
+
+func createNewJwtToken(userID uint, signKey string) (string, error) {
+	claims := MyCustomClaims{
+		UserID: userID,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour * 7)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			NotBefore: jwt.NewNumericDate(time.Now()),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	tokenString, err := token.SignedString([]byte(signKey))
+
+	return tokenString, err
 }

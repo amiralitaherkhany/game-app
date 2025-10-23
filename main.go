@@ -43,7 +43,7 @@ func UserProfileHandler(writer http.ResponseWriter, r *http.Request) {
 	}
 
 	repo := mysql.New()
-	resp, err := userservice.New(repo).GetProfile(req)
+	resp, err := userservice.New(repo, "go123").GetProfile(req)
 	if err != nil {
 		fmt.Fprintln(writer, err)
 		return
@@ -69,7 +69,7 @@ func UserLoginHandler(writer http.ResponseWriter, r *http.Request) {
 		return
 	}
 	repo := mysql.New()
-	_, err = userservice.New(repo).Login(req)
+	_, err = userservice.New(repo, "go123").Login(req)
 	if err != nil {
 		fmt.Fprintln(writer, err)
 		return
@@ -94,10 +94,10 @@ func UserRegisterHandler(writer http.ResponseWriter, r *http.Request) {
 		return
 	}
 	repo := mysql.New()
-	_, err = userservice.New(repo).Register(req)
+	resp, err := userservice.New(repo, "go123").Register(req)
 	if err != nil {
 		fmt.Fprintln(writer, err)
 		return
 	}
-	fmt.Fprintln(writer, "user created")
+	json.NewEncoder(writer).Encode(resp)
 }
