@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"gameapp/repository/mysql"
+	"gameapp/service/authservice"
 	"gameapp/service/userservice"
 	"io"
 	"net/http"
+	"time"
 )
 
 func main() {
@@ -29,21 +31,27 @@ func UserProfileHandler(writer http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, err := io.ReadAll(r.Body)
-	if err != nil {
-		fmt.Fprintln(writer, err)
-		return
-	}
-
-	var req userservice.GetProfileRequest
-	err = json.Unmarshal(data, &req)
-	if err != nil {
-		fmt.Fprintln(writer, err)
-		return
-	}
-
+	authHeader := r.Header.Get("Authorization")
+	authSvc := authservice.New(
+		"go123",
+		"at",
+		"rt",
+		time.Hour*24,
+		time.Hour*24*7,
+	)
 	repo := mysql.New()
-	resp, err := userservice.New(repo, "go123").GetProfile(req)
+	userSvc := userservice.New(repo, authSvc)
+
+	claims, err := authSvc.ParseAccessToken(authHeader)
+	if err != nil {
+		fmt.Fprintln(writer, err)
+	}
+
+	resp, err := userSvc.GetProfile(
+		userservice.GetProfileRequest{
+			UserID: claims.UserID,
+		},
+	)
 	if err != nil {
 		fmt.Fprintln(writer, err)
 		return
@@ -57,23 +65,35 @@ func UserLoginHandler(writer http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(writer, "invalid method")
 		return
 	}
+
 	data, err := io.ReadAll(r.Body)
 	if err != nil {
 		fmt.Fprintln(writer, err)
 		return
 	}
+
 	var req userservice.LoginRequest
 	err = json.Unmarshal(data, &req)
 	if err != nil {
 		fmt.Fprintln(writer, err)
 		return
 	}
+
 	repo := mysql.New()
-	_, err = userservice.New(repo, "go123").Login(req)
+	authSvc := authservice.New(
+		"go123",
+		"at",
+		"rt",
+		time.Hour*24,
+		time.Hour*24*7,
+	)
+
+	_, err = userservice.New(repo, authSvc).Login(req)
 	if err != nil {
 		fmt.Fprintln(writer, err)
 		return
 	}
+
 	fmt.Fprintln(writer, "user logged in")
 }
 
@@ -82,22 +102,34 @@ func UserRegisterHandler(writer http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(writer, "invalid method")
 		return
 	}
+
 	data, err := io.ReadAll(r.Body)
 	if err != nil {
 		fmt.Fprintln(writer, err)
 		return
 	}
+
 	var req userservice.RegisterRequest
 	err = json.Unmarshal(data, &req)
 	if err != nil {
 		fmt.Fprintln(writer, err)
 		return
 	}
+
 	repo := mysql.New()
-	resp, err := userservice.New(repo, "go123").Register(req)
+	authSvc := authservice.New(
+		"go123",
+		"at",
+		"rt",
+		time.Hour*24,
+		time.Hour*24*7,
+	)
+
+	resp, err := userservice.New(repo, authSvc).Register(req)
 	if err != nil {
 		fmt.Fprintln(writer, err)
 		return
 	}
+
 	json.NewEncoder(writer).Encode(resp)
 }

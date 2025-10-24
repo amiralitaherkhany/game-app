@@ -4,9 +4,7 @@ import (
 	"fmt"
 	"gameapp/entity"
 	"gameapp/pkg/phonenumber"
-	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
-	"time"
 )
 
 type Repository interface {
@@ -15,10 +13,18 @@ type Repository interface {
 	GetUserByPhoneNumber(phoneNumber string) (*entity.User, error)
 	GetUserByID(userID uint) (*entity.User, error)
 }
+type AuthService interface {
+	CreateAccessToken(user entity.User) (string, error)
+	CreateRefreshToken() (string, error)
+}
 
 type Service struct {
-	signKey string
-	repo    Repository
+	auth AuthService
+	repo Repository
+}
+
+func New(repo Repository, auth AuthService) *Service {
+	return &Service{repo: repo, auth: auth}
 }
 
 type GetProfileRequest struct {
@@ -50,6 +56,8 @@ type LoginRequest struct {
 }
 
 type LoginResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
 }
 
 func (s Service) Login(req LoginRequest) (LoginResponse, error) {
@@ -66,11 +74,20 @@ func (s Service) Login(req LoginRequest) (LoginResponse, error) {
 		return LoginResponse{}, fmt.Errorf("phone number or password isn't correct")
 	}
 
-	return LoginResponse{}, nil
-}
+	accessToken, err := s.auth.CreateAccessToken(*user)
+	if err != nil {
+		return LoginResponse{}, fmt.Errorf("unexpected error: %w", err)
+	}
 
-func New(repo Repository, signKey string) *Service {
-	return &Service{repo: repo, signKey: signKey}
+	refreshToken, err := s.auth.CreateRefreshToken()
+	if err != nil {
+		return LoginResponse{}, fmt.Errorf("unexpected error: %w", err)
+	}
+
+	return LoginResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	}, nil
 }
 
 type RegisterRequest struct {
@@ -79,7 +96,8 @@ type RegisterRequest struct {
 	Password    string `json:"password"`
 }
 type RegisterResponse struct {
-	AccessToken string `json:"access_token"`
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
 }
 
 func (s Service) Register(req RegisterRequest) (RegisterResponse, error) {
@@ -129,13 +147,19 @@ func (s Service) Register(req RegisterRequest) (RegisterResponse, error) {
 		return RegisterResponse{}, fmt.Errorf("unexpected error: %w", err)
 	}
 
-	jwtToken, err := createNewJwtToken(createdUser.ID, s.signKey)
+	accessToken, err := s.auth.CreateAccessToken(createdUser)
+	if err != nil {
+		return RegisterResponse{}, fmt.Errorf("unexpected error: %w", err)
+	}
+
+	refreshToken, err := s.auth.CreateRefreshToken()
 	if err != nil {
 		return RegisterResponse{}, fmt.Errorf("unexpected error: %w", err)
 	}
 
 	return RegisterResponse{
-		AccessToken: jwtToken,
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
 	}, nil
 }
 
@@ -148,26 +172,4 @@ func HashPassword(password string) (string, error) {
 func CheckPasswordHash(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
-}
-
-type MyCustomClaims struct {
-	UserID uint `json:"user_id"`
-	jwt.RegisteredClaims
-}
-
-func createNewJwtToken(userID uint, signKey string) (string, error) {
-	claims := MyCustomClaims{
-		UserID: userID,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour * 7)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			NotBefore: jwt.NewNumericDate(time.Now()),
-		},
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-
-	tokenString, err := token.SignedString([]byte(signKey))
-
-	return tokenString, err
 }
