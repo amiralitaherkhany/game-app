@@ -1,135 +1,118 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
+	"gameapp/config"
+	"gameapp/delivery/httpserver"
 	"gameapp/repository/mysql"
 	"gameapp/service/authservice"
 	"gameapp/service/userservice"
-	"io"
-	"net/http"
 	"time"
 )
 
 func main() {
-	mux := http.NewServeMux()
 
-	mux.HandleFunc("/users/register", UserRegisterHandler)
-	mux.HandleFunc("/users/login", UserLoginHandler)
-	mux.HandleFunc("/users/profile", UserProfileHandler)
-
-	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
-		fmt.Fprintln(w, "everything is good!")
-	})
-
-	http.ListenAndServe("localhost:8080", mux)
-}
-
-func UserProfileHandler(writer http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		fmt.Fprintln(writer, "invalid method")
-		return
-	}
-
-	authHeader := r.Header.Get("Authorization")
-	authSvc := authservice.New(
-		"go123",
-		"at",
-		"rt",
-		time.Hour*24,
-		time.Hour*24*7,
-	)
-	repo := mysql.New()
-	userSvc := userservice.New(repo, authSvc)
-
-	claims, err := authSvc.ParseAccessToken(authHeader)
-	if err != nil {
-		fmt.Fprintln(writer, err)
-	}
-
-	resp, err := userSvc.GetProfile(
-		userservice.GetProfileRequest{
-			UserID: claims.UserID,
+	cfg := config.Config{
+		HTTPServer: config.HTTPServer{
+			Port: 8080,
 		},
-	)
-	if err != nil {
-		fmt.Fprintln(writer, err)
-		return
+		Auth: authservice.Config{
+			SignKey:               "go123",
+			AccessExpirationTime:  time.Hour * 24,
+			RefreshExpirationTime: time.Hour * 24 * 7,
+			AccessSubject:         "at",
+			RefreshSubject:        "rt",
+		},
+		DB: mysql.Config{
+			Username: "gameapp",
+			Password: "gameappt0lk2o20",
+			Port:     3308,
+			Host:     "localhost",
+			DBName:   "gameapp_db",
+		},
 	}
 
-	json.NewEncoder(writer).Encode(resp)
+	deps := setupDependencies(cfg)
+
+	server := httpserver.New(cfg, deps.authSvc, deps.userSvc)
+
+	server.Serve()
 }
 
-func UserLoginHandler(writer http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		fmt.Fprintln(writer, "invalid method")
-		return
-	}
-
-	data, err := io.ReadAll(r.Body)
-	if err != nil {
-		fmt.Fprintln(writer, err)
-		return
-	}
-
-	var req userservice.LoginRequest
-	err = json.Unmarshal(data, &req)
-	if err != nil {
-		fmt.Fprintln(writer, err)
-		return
-	}
-
-	repo := mysql.New()
-	authSvc := authservice.New(
-		"go123",
-		"at",
-		"rt",
-		time.Hour*24,
-		time.Hour*24*7,
-	)
-
-	_, err = userservice.New(repo, authSvc).Login(req)
-	if err != nil {
-		fmt.Fprintln(writer, err)
-		return
-	}
-
-	fmt.Fprintln(writer, "user logged in")
+type dependencies struct {
+	authSvc authservice.Service
+	userSvc userservice.Service
 }
 
-func UserRegisterHandler(writer http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		fmt.Fprintln(writer, "invalid method")
-		return
+func setupDependencies(cfg config.Config) dependencies {
+	dbRepo := mysql.New(cfg.DB)
+	authSvc := authservice.New(cfg.Auth)
+	userSvc := userservice.New(dbRepo, authSvc)
+
+	return dependencies{
+		authSvc: *authSvc,
+		userSvc: *userSvc,
 	}
-
-	data, err := io.ReadAll(r.Body)
-	if err != nil {
-		fmt.Fprintln(writer, err)
-		return
-	}
-
-	var req userservice.RegisterRequest
-	err = json.Unmarshal(data, &req)
-	if err != nil {
-		fmt.Fprintln(writer, err)
-		return
-	}
-
-	repo := mysql.New()
-	authSvc := authservice.New(
-		"go123",
-		"at",
-		"rt",
-		time.Hour*24,
-		time.Hour*24*7,
-	)
-
-	resp, err := userservice.New(repo, authSvc).Register(req)
-	if err != nil {
-		fmt.Fprintln(writer, err)
-		return
-	}
-
-	json.NewEncoder(writer).Encode(resp)
 }
+
+//func UserProfileHandler(writer http.ResponseWriter, r *http.Request) {
+//	if r.Method != http.MethodGet {
+//		fmt.Fprintln(writer, "invalid method")
+//		return
+//	}
+//
+//	authHeader := r.Header.Get("Authorization")
+//
+//	claims, err := s.authSvc.ParseAccessToken(authHeader)
+//	if err != nil {
+//		fmt.Fprintln(writer, err)
+//	}
+//
+//	resp, err := userSvc.GetProfile(
+//		userservice.GetProfileRequest{
+//			UserID: claims.UserID,
+//		},
+//	)
+//	if err != nil {
+//		fmt.Fprintln(writer, err)
+//		return
+//	}
+//
+//	json.NewEncoder(writer).Encode(resp)
+//}
+//
+//func UserLoginHandler(writer http.ResponseWriter, r *http.Request) {
+//	if r.Method != http.MethodPost {
+//		fmt.Fprintln(writer, "invalid method")
+//		return
+//	}
+//
+//	data, err := io.ReadAll(r.Body)
+//	if err != nil {
+//		fmt.Fprintln(writer, err)
+//		return
+//	}
+//
+//	var req userservice.LoginRequest
+//	err = json.Unmarshal(data, &req)
+//	if err != nil {
+//		fmt.Fprintln(writer, err)
+//		return
+//	}
+//
+//	repo := mysql.New()
+//	authSvc := authservice.New(
+//		"go123",
+//		"at",
+//		"rt",
+//		time.Hour*24,
+//		time.Hour*24*7,
+//	)
+//
+//	_, err = userservice.New(repo, authSvc).Login(req)
+//	if err != nil {
+//		fmt.Fprintln(writer, err)
+//		return
+//	}
+//
+//	fmt.Fprintln(writer, "user logged in")
+//}

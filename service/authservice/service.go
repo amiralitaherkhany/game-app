@@ -8,21 +8,21 @@ import (
 	"time"
 )
 
-type Service struct {
-	signKey               string
-	accessExpirationTime  time.Duration
-	refreshExpirationTime time.Duration
-	accessSubject         string
-	refreshSubject        string
+type Config struct {
+	SignKey               string
+	AccessExpirationTime  time.Duration
+	RefreshExpirationTime time.Duration
+	AccessSubject         string
+	RefreshSubject        string
 }
 
-func New(signKey, accessSubject, refreshSubject string, accessExpirationTime, refreshExpirationTime time.Duration) *Service {
+type Service struct {
+	config Config
+}
+
+func New(c Config) *Service {
 	return &Service{
-		signKey:               signKey,
-		accessExpirationTime:  accessExpirationTime,
-		refreshExpirationTime: refreshExpirationTime,
-		accessSubject:         accessSubject,
-		refreshSubject:        refreshSubject,
+		config: c,
 	}
 }
 
@@ -30,8 +30,8 @@ func (s Service) CreateAccessToken(user entity.User) (string, error) {
 	claims := AccessTokenClaims{
 		UserID: user.ID,
 		RegisteredClaims: jwt.RegisteredClaims{
-			Subject:   s.accessSubject,
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(s.accessExpirationTime)),
+			Subject:   s.config.AccessSubject,
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(s.config.AccessExpirationTime)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),
 		},
@@ -48,8 +48,8 @@ func (s Service) CreateAccessToken(user entity.User) (string, error) {
 func (s Service) CreateRefreshToken() (string, error) {
 	claims := RefreshTokenClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
-			Subject:   s.refreshSubject,
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(s.refreshExpirationTime)),
+			Subject:   s.config.RefreshSubject,
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(s.config.RefreshExpirationTime)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),
 		},
@@ -65,7 +65,7 @@ func (s Service) CreateRefreshToken() (string, error) {
 
 func (s Service) createNewJwtToken(claims jwt.Claims) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString([]byte(s.signKey))
+	tokenString, err := token.SignedString([]byte(s.config.SignKey))
 	return tokenString, err
 }
 
@@ -73,7 +73,7 @@ func (s Service) ParseRefreshToken(bearerToken string) (*RefreshTokenClaims, err
 	tokenString := strings.Replace(bearerToken, "Bearer ", "", 1)
 
 	token, err := jwt.ParseWithClaims(tokenString, &RefreshTokenClaims{}, func(token *jwt.Token) (any, error) {
-		return []byte(s.signKey), nil
+		return []byte(s.config.SignKey), nil
 	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
 	if err != nil {
 		return &RefreshTokenClaims{}, err
@@ -90,7 +90,7 @@ func (s Service) ParseAccessToken(bearerToken string) (*AccessTokenClaims, error
 	tokenString := strings.Replace(bearerToken, "Bearer ", "", 1)
 
 	token, err := jwt.ParseWithClaims(tokenString, &AccessTokenClaims{}, func(token *jwt.Token) (any, error) {
-		return []byte(s.signKey), nil
+		return []byte(s.config.SignKey), nil
 	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
 	if err != nil {
 		return &AccessTokenClaims{}, err

@@ -13,6 +13,7 @@ type Repository interface {
 	GetUserByPhoneNumber(phoneNumber string) (*entity.User, error)
 	GetUserByID(userID uint) (*entity.User, error)
 }
+
 type AuthService interface {
 	CreateAccessToken(user entity.User) (string, error)
 	CreateRefreshToken() (string, error)
@@ -95,9 +96,16 @@ type RegisterRequest struct {
 	Name        string `json:"name"`
 	Password    string `json:"password"`
 }
+
+type RegisterResponseUser struct {
+	ID          uint   `json:"id"`
+	Name        string `json:"name"`
+	PhoneNumber string `json:"phone_number"`
+}
 type RegisterResponse struct {
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
+	User         RegisterResponseUser `json:"user"`
+	AccessToken  string               `json:"access_token"`
+	RefreshToken string               `json:"refresh_token"`
 }
 
 func (s Service) Register(req RegisterRequest) (RegisterResponse, error) {
@@ -158,6 +166,11 @@ func (s Service) Register(req RegisterRequest) (RegisterResponse, error) {
 	}
 
 	return RegisterResponse{
+		User: RegisterResponseUser{
+			ID:          createdUser.ID,
+			Name:        createdUser.Name,
+			PhoneNumber: createdUser.PhoneNumber,
+		},
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	}, nil
