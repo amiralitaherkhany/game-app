@@ -57,8 +57,8 @@ type LoginRequest struct {
 }
 
 type LoginResponse struct {
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
+	User   UserInfo `json:"user"`
+	Tokens Tokens   `json:"tokens"`
 }
 
 func (s Service) Login(req LoginRequest) (LoginResponse, error) {
@@ -86,8 +86,15 @@ func (s Service) Login(req LoginRequest) (LoginResponse, error) {
 	}
 
 	return LoginResponse{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
+		User: UserInfo{
+			ID:          user.ID,
+			Name:        user.Name,
+			PhoneNumber: user.PhoneNumber,
+		},
+		Tokens: Tokens{
+			AccessToken:  accessToken,
+			RefreshToken: refreshToken,
+		},
 	}, nil
 }
 
@@ -97,15 +104,17 @@ type RegisterRequest struct {
 	Password    string `json:"password"`
 }
 
-type RegisterResponseUser struct {
+type UserInfo struct {
 	ID          uint   `json:"id"`
 	Name        string `json:"name"`
 	PhoneNumber string `json:"phone_number"`
 }
+type Tokens struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+}
 type RegisterResponse struct {
-	User         RegisterResponseUser `json:"user"`
-	AccessToken  string               `json:"access_token"`
-	RefreshToken string               `json:"refresh_token"`
+	User UserInfo `json:"user"`
 }
 
 func (s Service) Register(req RegisterRequest) (RegisterResponse, error) {
@@ -155,24 +164,12 @@ func (s Service) Register(req RegisterRequest) (RegisterResponse, error) {
 		return RegisterResponse{}, fmt.Errorf("unexpected error: %w", err)
 	}
 
-	accessToken, err := s.auth.CreateAccessToken(createdUser)
-	if err != nil {
-		return RegisterResponse{}, fmt.Errorf("unexpected error: %w", err)
-	}
-
-	refreshToken, err := s.auth.CreateRefreshToken()
-	if err != nil {
-		return RegisterResponse{}, fmt.Errorf("unexpected error: %w", err)
-	}
-
 	return RegisterResponse{
-		User: RegisterResponseUser{
+		User: UserInfo{
 			ID:          createdUser.ID,
 			Name:        createdUser.Name,
 			PhoneNumber: createdUser.PhoneNumber,
 		},
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
 	}, nil
 }
 

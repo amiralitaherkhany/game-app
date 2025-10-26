@@ -15,8 +15,16 @@ type Server struct {
 	userSvc userservice.Service
 }
 
-func New(config config.Config, authSvc authservice.Service, userSvc userservice.Service) *Server {
-	return &Server{config: config, authSvc: authSvc, userSvc: userSvc}
+func New(
+	config config.Config,
+	authSvc authservice.Service,
+	userSvc userservice.Service,
+) *Server {
+	return &Server{
+		config:  config,
+		authSvc: authSvc,
+		userSvc: userSvc,
+	}
 }
 
 func (s Server) Serve() {
@@ -26,7 +34,11 @@ func (s Server) Serve() {
 	e.Use(middleware.Recover())
 
 	e.GET("/health", s.healthCheck)
-	e.POST("/users/register", s.userRegisterHandler)
+
+	userGroup := e.Group("/users")
+	userGroup.POST("/register", s.userRegisterHandler)
+	userGroup.POST("/login", s.userLoginHandler)
+	userGroup.GET("/profile", s.userProfileHandler)
 
 	e.Logger.Fatal(e.Start(fmt.Sprintf(":%d", s.config.HTTPServer.Port)))
 }
