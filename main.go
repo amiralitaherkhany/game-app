@@ -3,6 +3,7 @@ package main
 import (
 	"gameapp/config"
 	"gameapp/delivery/httpserver"
+	"gameapp/repository/migrator"
 	"gameapp/repository/mysql"
 	"gameapp/service/authservice"
 	"gameapp/service/userservice"
@@ -10,7 +11,6 @@ import (
 )
 
 func main() {
-
 	cfg := config.Config{
 		HTTPServer: config.HTTPServer{
 			Port: 8080,
@@ -30,6 +30,9 @@ func main() {
 			DBName:   "gameapp_db",
 		},
 	}
+	
+	mgr := migrator.New(cfg.DB)
+	mgr.Up()
 
 	deps := setupDependencies(cfg)
 

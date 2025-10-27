@@ -15,7 +15,7 @@ type MySQLDB struct {
 func New(cfg Config) *MySQLDB {
 	db, err := sql.Open("mysql",
 		fmt.Sprintf(
-			"%s:%s@(%s:%d)/%s",
+			"%s:%s@(%s:%d)/%s?parseTime=true",
 			cfg.Username,
 			cfg.Password,
 			cfg.Host,
