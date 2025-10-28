@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"gameapp/pkg/httpmsg"
 	"gameapp/service/userservice"
 	"github.com/labstack/echo/v4"
 	"net/http"
@@ -14,7 +15,8 @@ func (s Server) userRegisterHandler(c echo.Context) error {
 
 	resp, err := s.userSvc.Register(*req)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		message, code := httpmsg.Error(err)
+		return echo.NewHTTPError(code, message)
 	}
 
 	return c.JSON(http.StatusCreated, resp)
@@ -28,7 +30,8 @@ func (s Server) userLoginHandler(c echo.Context) error {
 
 	resp, err := s.userSvc.Login(*req)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		message, code := httpmsg.Error(err)
+		return echo.NewHTTPError(code, message)
 	}
 
 	return c.JSON(http.StatusOK, resp)
@@ -48,7 +51,8 @@ func (s Server) userProfileHandler(c echo.Context) error {
 		},
 	)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		message, code := httpmsg.Error(err)
+		return echo.NewHTTPError(code, message)
 	}
 
 	return c.JSON(http.StatusOK, resp)

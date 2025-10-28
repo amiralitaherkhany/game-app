@@ -2,38 +2,59 @@ package mysql
 
 import (
 	"database/sql"
-	"fmt"
 	"gameapp/entity"
+	"gameapp/pkg/errmsg"
+	"gameapp/pkg/richerror"
 )
 
-func (d MySQLDB) GetUserByID(userID uint) (*entity.User, error) {
+func (d MySQLDB) GetUserByID(userID uint) (entity.User, error) {
 	row := d.db.QueryRow(`select id, name, phone_number, password from users where id=?`, userID)
 
 	var user entity.User
 	err := row.Scan(&user.ID, &user.Name, &user.PhoneNumber, &user.Password)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, nil
+			return entity.User{},
+				richerror.
+					New("mysql.GetUserByID").
+					WithErr(err).
+					WithMessage(errmsg.ErrorMsgNotFound).
+					WithKind(richerror.KindNotFound)
 		}
-		return &entity.User{}, fmt.Errorf("can't scan query result: %w", err)
+		return entity.User{},
+			richerror.
+				New("mysql.GetUserByID").
+				WithErr(err).
+				WithMessage(errmsg.ErrorMsgCantScanQueryResult).
+				WithKind(richerror.KindUnexpected)
 	}
 
-	return &user, nil
+	return user, nil
 }
 
-func (d MySQLDB) GetUserByPhoneNumber(phoneNumber string) (*entity.User, error) {
+func (d MySQLDB) GetUserByPhoneNumber(phoneNumber string) (entity.User, error) {
 	row := d.db.QueryRow(`select id, name, phone_number, password from users where phone_number=?`, phoneNumber)
 
 	var user entity.User
 	err := row.Scan(&user.ID, &user.Name, &user.PhoneNumber, &user.Password)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, nil
+			return entity.User{},
+				richerror.
+					New("mysql.GetUserByPhoneNumber").
+					WithErr(err).
+					WithMessage(errmsg.ErrorMsgNotFound).
+					WithKind(richerror.KindNotFound)
 		}
-		return &entity.User{}, fmt.Errorf("can't scan query result: %w", err)
+		return entity.User{},
+			richerror.
+				New("mysql.GetUserByPhoneNumber").
+				WithErr(err).
+				WithMessage(errmsg.ErrorMsgCantScanQueryResult).
+				WithKind(richerror.KindUnexpected)
 	}
 
-	return &user, nil
+	return user, nil
 }
 
 func (d MySQLDB) IsPhoneNumberUnique(phoneNumber string) (bool, error) {
@@ -45,7 +66,11 @@ func (d MySQLDB) IsPhoneNumberUnique(phoneNumber string) (bool, error) {
 		if err == sql.ErrNoRows {
 			return true, nil
 		}
-		return false, fmt.Errorf("can't scan query result: %w", err)
+		return false, richerror.
+			New("mysql.GetUserByPhoneNumber").
+			WithErr(err).
+			WithMessage(errmsg.ErrorMsgCantScanQueryResult).
+			WithKind(richerror.KindUnexpected)
 	}
 
 	return false, nil
@@ -54,7 +79,12 @@ func (d MySQLDB) IsPhoneNumberUnique(phoneNumber string) (bool, error) {
 func (d MySQLDB) Register(u entity.User) (entity.User, error) {
 	result, err := d.db.Exec(`INSERT INTO users(name, phone_number, password) VALUES (?, ?, ?)`, u.Name, u.PhoneNumber, u.Password)
 	if err != nil {
-		return entity.User{}, fmt.Errorf("can't insert user to db: %w", err)
+		return entity.User{},
+			richerror.
+				New("mysql.Register").
+				WithErr(err).
+				WithMessage("can't insert user to db").
+				WithKind(richerror.KindUnexpected)
 	}
 
 	id, _ := result.LastInsertId()

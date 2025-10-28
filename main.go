@@ -30,7 +30,7 @@ func main() {
 			DBName:   "gameapp_db",
 		},
 	}
-	
+
 	mgr := migrator.New(cfg.DB)
 	mgr.Up()
 

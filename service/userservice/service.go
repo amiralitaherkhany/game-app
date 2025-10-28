@@ -4,14 +4,15 @@ import (
 	"fmt"
 	"gameapp/entity"
 	"gameapp/pkg/phonenumber"
+	"gameapp/pkg/richerror"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type Repository interface {
 	IsPhoneNumberUnique(phoneNumber string) (bool, error)
 	Register(u entity.User) (entity.User, error)
-	GetUserByPhoneNumber(phoneNumber string) (*entity.User, error)
-	GetUserByID(userID uint) (*entity.User, error)
+	GetUserByPhoneNumber(phoneNumber string) (entity.User, error)
+	GetUserByID(userID uint) (entity.User, error)
 }
 
 type AuthService interface {
@@ -39,11 +40,7 @@ type GetProfileResponse struct {
 func (s Service) GetProfile(req GetProfileRequest) (GetProfileResponse, error) {
 	user, err := s.repo.GetUserByID(req.UserID)
 	if err != nil {
-		return GetProfileResponse{}, fmt.Errorf("unexpected error: %w", err)
-	}
-
-	if user == nil {
-		return GetProfileResponse{}, fmt.Errorf("user not found")
+		return GetProfileResponse{}, richerror.New("").WithErr(err)
 	}
 
 	return GetProfileResponse{
@@ -64,18 +61,15 @@ type LoginResponse struct {
 func (s Service) Login(req LoginRequest) (LoginResponse, error) {
 	user, err := s.repo.GetUserByPhoneNumber(req.PhoneNumber)
 	if err != nil {
-		return LoginResponse{}, fmt.Errorf("unexpected error: %w", err)
-	}
-
-	if user == nil {
-		return LoginResponse{}, fmt.Errorf("phone number or password isn't correct")
+		return LoginResponse{},
+			richerror.New("userservice.Login").WithErr(err)
 	}
 
 	if !CheckPasswordHash(req.Password, user.Password) {
 		return LoginResponse{}, fmt.Errorf("phone number or password isn't correct")
 	}
 
-	accessToken, err := s.auth.CreateAccessToken(*user)
+	accessToken, err := s.auth.CreateAccessToken(user)
 	if err != nil {
 		return LoginResponse{}, fmt.Errorf("unexpected error: %w", err)
 	}
@@ -126,7 +120,7 @@ func (s Service) Register(req RegisterRequest) (RegisterResponse, error) {
 	// check the uniqueness of phone number
 	isUnique, err := s.repo.IsPhoneNumberUnique(req.PhoneNumber)
 	if err != nil {
-		return RegisterResponse{}, fmt.Errorf("unexpected error: %w", err)
+		return RegisterResponse{}, richerror.New("").WithErr(err)
 	}
 	if !isUnique {
 		return RegisterResponse{}, fmt.Errorf("phone number is not valid")
@@ -161,7 +155,7 @@ func (s Service) Register(req RegisterRequest) (RegisterResponse, error) {
 
 	createdUser, err := s.repo.Register(user)
 	if err != nil {
-		return RegisterResponse{}, fmt.Errorf("unexpected error: %w", err)
+		return RegisterResponse{}, richerror.New("").WithErr(err)
 	}
 
 	return RegisterResponse{
