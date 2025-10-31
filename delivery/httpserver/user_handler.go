@@ -13,7 +13,7 @@ func (s Server) userRegisterHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 
-	err, fieldErrors := s.userValidator.ValidateRegisterRequest(*req)
+	fieldErrors, err := s.userValidator.ValidateRegisterRequest(*req)
 	if err != nil {
 		message, code := httpmsg.Error(err)
 		return echo.NewHTTPError(code, echo.Map{
