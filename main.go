@@ -7,6 +7,7 @@ import (
 	"gameapp/repository/mysql"
 	"gameapp/service/authservice"
 	"gameapp/service/userservice"
+	"gameapp/validator/uservalidator"
 	"time"
 )
 
@@ -36,23 +37,26 @@ func main() {
 
 	deps := setupDependencies(cfg)
 
-	server := httpserver.New(cfg, deps.authSvc, deps.userSvc)
+	server := httpserver.New(cfg, deps.authSvc, deps.userSvc, deps.userValidator)
 
 	server.Serve()
 }
 
 type dependencies struct {
-	authSvc authservice.Service
-	userSvc userservice.Service
+	authSvc       authservice.Service
+	userSvc       userservice.Service
+	userValidator uservalidator.Validator
 }
 
 func setupDependencies(cfg config.Config) dependencies {
 	dbRepo := mysql.New(cfg.DB)
 	authSvc := authservice.New(cfg.Auth)
 	userSvc := userservice.New(dbRepo, authSvc)
+	userV := uservalidator.New(dbRepo)
 
 	return dependencies{
-		authSvc: *authSvc,
-		userSvc: *userSvc,
+		authSvc:       *authSvc,
+		userSvc:       *userSvc,
+		userValidator: *userV,
 	}
 }

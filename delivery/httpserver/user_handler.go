@@ -1,16 +1,25 @@
 package httpserver
 
 import (
+	"gameapp/dto"
 	"gameapp/pkg/httpmsg"
-	"gameapp/service/userservice"
 	"github.com/labstack/echo/v4"
 	"net/http"
 )
 
 func (s Server) userRegisterHandler(c echo.Context) error {
-	req := new(userservice.RegisterRequest)
+	req := new(dto.RegisterRequest)
 	if err := c.Bind(req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+
+	err, fieldErrors := s.userValidator.ValidateRegisterRequest(*req)
+	if err != nil {
+		message, code := httpmsg.Error(err)
+		return echo.NewHTTPError(code, echo.Map{
+			"message": message,
+			"errors":  fieldErrors,
+		})
 	}
 
 	resp, err := s.userSvc.Register(*req)
@@ -23,7 +32,7 @@ func (s Server) userRegisterHandler(c echo.Context) error {
 }
 
 func (s Server) userLoginHandler(c echo.Context) error {
-	req := new(userservice.LoginRequest)
+	req := new(dto.LoginRequest)
 	if err := c.Bind(req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
@@ -46,7 +55,7 @@ func (s Server) userProfileHandler(c echo.Context) error {
 	}
 
 	resp, err := s.userSvc.GetProfile(
-		userservice.GetProfileRequest{
+		dto.GetProfileRequest{
 			UserID: claims.UserID,
 		},
 	)
